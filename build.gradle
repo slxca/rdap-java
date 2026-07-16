@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+group = 'com.slxca'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    withJavadocJar()
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.json:json:20231013'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'rdap-java'
+                description = 'Lightweight RDAP client library to check domain registration'
+                url = 'https://github.com/slxca/rdap-java'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'slxca'
+                        name = 'slxca'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/slxca/rdap-java.git'
+                    developerConnection = 'scm:git:ssh://github.com/slxca/rdap-java.git'
+                    url = 'https://github.com/slxca/rdap-java'
+                }
+            }
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -1,0 +1,9 @@
+{
+  "fallback": [
+    [["de"], ["https://rdap.denic.de/"]],
+    [["ch"], ["https://rdap.nic.ch/"]],
+    [["us"], ["https://rdap.nic.us/"]],
+    [["no"], ["https://rdap.norid.no/"]],
+    [["nl"], ["https://rdap.sidn.nl/"]]
+  ]
+}
