@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'maven-publish'
     id 'signing'
-    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 }
 
 group = 'com.slxca'
@@ -54,6 +53,16 @@ publishing {
             }
         }
     }
+    repositories {
+        maven {
+            name = "central"
+            url = uri("https://central.sonatype.com/api/v1/publisher/upload")
+            credentials {
+                username = System.getenv("SONATYPE_USERNAME")
+                password = System.getenv("SONATYPE_PASSWORD")
+            }
+        }
+    }
 }
 
 signing {
@@ -62,17 +71,6 @@ signing {
         System.getenv("GPG_PASSPHRASE")
     )
     sign publishing.publications.mavenJava
-}
-
-nexusPublishing {
-    repositories {
-        sonatype {
-            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
-            username.set(System.getenv("SONATYPE_USERNAME"))
-            password.set(System.getenv("SONATYPE_PASSWORD"))
-        }
-    }
 }
 
 javadoc {
