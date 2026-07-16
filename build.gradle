@@ -53,16 +53,6 @@ publishing {
             }
         }
     }
-    repositories {
-        maven {
-            name = "central"
-            url = uri("https://central.sonatype.com/api/v1/publisher/upload")
-            credentials {
-                username = System.getenv("SONATYPE_USERNAME")
-                password = System.getenv("SONATYPE_PASSWORD")
-            }
-        }
-    }
 }
 
 signing {
@@ -79,4 +69,72 @@ javadoc {
 
 test {
     useJUnitPlatform()
+}
+
+tasks.register('uploadToCentral') {
+    dependsOn 'signMavenJavaPublication'
+
+    doLast {
+        def v = project.version
+        def a = publishing.publications.mavenJava.artifactId
+        def bd = layout.buildDirectory.get().asFile
+
+        def entries = []
+        // build/libs/ — files already have correct Maven names
+        entries << [file: new File(bd, "libs/${a}-${v}.jar"), name: "${a}-${v}.jar"]
+        entries << [file: new File(bd, "libs/${a}-${v}.jar.asc"), name: "${a}-${v}.jar.asc"]
+        entries << [file: new File(bd, "libs/${a}-${v}-sources.jar"), name: "${a}-${v}-sources.jar"]
+        entries << [file: new File(bd, "libs/${a}-${v}-sources.jar.asc"), name: "${a}-${v}-sources.jar.asc"]
+        entries << [file: new File(bd, "libs/${a}-${v}-javadoc.jar"), name: "${a}-${v}-javadoc.jar"]
+        entries << [file: new File(bd, "libs/${a}-${v}-javadoc.jar.asc"), name: "${a}-${v}-javadoc.jar.asc"]
+        // build/publications/ — files have Gradle internal names, rename to Maven names
+        entries << [file: new File(bd, "publications/mavenJava/pom-default.xml"), name: "${a}-${v}.pom"]
+        entries << [file: new File(bd, "publications/mavenJava/pom-default.xml.asc"), name: "${a}-${v}.pom.asc"]
+        entries << [file: new File(bd, "publications/mavenJava/module.json"), name: "${a}-${v}.module"]
+        entries << [file: new File(bd, "publications/mavenJava/module.json.asc"), name: "${a}-${v}.module.asc"]
+
+        def boundary = UUID.randomUUID().toString()
+        def baos = new ByteArrayOutputStream()
+        def nl = "\r\n"
+        def missing = []
+
+        entries.each { e ->
+            if (!e.file.exists()) {
+                missing << e.file.path
+                return
+            }
+            baos.write("--$boundary${nl}".bytes)
+            baos.write("Content-Disposition: form-data; name=\"file\"; filename=\"${e.name}\"${nl}".bytes)
+            baos.write("Content-Type: application/octet-stream${nl}${nl}".bytes)
+            baos.write(e.file.bytes)
+            baos.write(nl.bytes)
+        }
+        baos.write("--${boundary}--${nl}".bytes)
+
+        if (missing.size() == entries.size()) {
+            throw new GradleException("No artifacts found to upload. Missing: ${missing[0]}")
+        }
+
+        def url = URI.create("https://central.sonatype.com/api/v1/publisher/upload")
+        def user = System.getenv("SONATYPE_USERNAME")
+        def pass = System.getenv("SONATYPE_PASSWORD")
+
+        if (!user || !pass) throw new GradleException("SONATYPE_USERNAME/PASSWORD not set")
+
+        def auth = Base64.getEncoder().encodeToString("$user:$pass".bytes)
+        def client = java.net.http.HttpClient.newHttpClient()
+        def request = java.net.http.HttpRequest.newBuilder()
+                .uri(url)
+                .header("Content-Type", "multipart/form-data; boundary=$boundary")
+                .header("Authorization", "Basic $auth")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofByteArray(baos.toByteArray()))
+                .build()
+
+        def response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() in [200, 201, 202, 204]) {
+            println "Upload successful: HTTP ${response.statusCode()}"
+        } else {
+            throw new GradleException("Upload failed: HTTP ${response.statusCode()} - ${response.body()}")
+        }
+    }
 }
