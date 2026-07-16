@@ -25,6 +25,21 @@ cp "$BUILD_DIR/publications/mavenJava/pom-default.xml.asc"  "$BUNDLE_DIR/$ARTIFA
 cp "$BUILD_DIR/publications/mavenJava/module.json"          "$BUNDLE_DIR/$ARTIFACT_ID-$VERSION.module"
 cp "$BUILD_DIR/publications/mavenJava/module.json.asc"      "$BUNDLE_DIR/$ARTIFACT_ID-$VERSION.module.asc"
 
+# Generate .md5 and .sha1 checksums for every file
+for f in "$BUNDLE_DIR"/*; do
+  [ -f "$f" ] || continue
+  base="${f##*/}"
+  # skip existing checksum files
+  case "$base" in *.md5|*.sha1) continue ;; esac
+  if command -v md5sum &>/dev/null; then
+    md5sum "$f" | cut -d' ' -f1 > "$f.md5"
+    sha1sum "$f" | cut -d' ' -f1 > "$f.sha1"
+  else
+    md5 -q "$f" > "$f.md5"
+    shasum -a 1 "$f" | cut -d' ' -f1 > "$f.sha1"
+  fi
+done
+
 # Create ZIP from bundle directory (cd into build/central-bundle to get clean paths)
 cd "$BUILD_DIR/central-bundle"
 zip -r "../central-bundle.zip" .
